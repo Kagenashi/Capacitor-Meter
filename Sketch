@@ -1,0 +1,121 @@
+// Made by https://github.com/Kagenashi
+
+#define PrueferPin A0
+#define Aufladen   13
+#define Entladung  10
+
+#include <LiquidCrystal.h>
+
+const int rs = 11, en = 12, d4 = 2, d5 = 3, d6 = 4, d7 = 5; //Pin festlegung
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
+const double Widerstandswert = 10000.0;// Widerstandswert am auflade Pin (hier 10k OHM)
+int durchgangsCount = 1;
+unsigned long laufStart, entladeStart, deltaZeit, deltaentladeZeit, sumAuf = 0, sumEnt = 0;
+double Farads, sumFarads = 0.0;
+
+void setup()
+{
+   lcd.begin(16, 2);// Festlegen, wie viele Zeichen und Reihen das Display hat:
+   pinMode(Aufladen, OUTPUT);
+   digitalWrite(Aufladen, LOW);
+   Serial.begin(9600);
+}
+
+void loop()
+{
+   delay(1000);
+   lcd.clear();
+   
+
+//MittelwertFunktion
+if (durchgangsCount > 16){//Anzahl an Durchläufe bis der Mittelwert ermittelt werden soll
+   lcd.clear();
+   lcd.setCursor(0, 0);
+   lcd.print("deltaAufladezeit");
+   lcd.setCursor(0, 1);
+   lcd.print(sumAuf/durchgangsCount);
+   lcd.print(" ms");
+
+	delay(5000);
+
+   lcd.clear();
+   lcd.setCursor(0, 0);
+   lcd.print("deltaKapazitaet");
+   lcd.setCursor(0, 1);
+   lcd.print(sumFarads/durchgangsCount);
+   lcd.print(" mikroF");
+
+	delay(5000);
+
+   lcd.clear();
+   lcd.setCursor(0, 0);
+   lcd.print("deltaEntladezeit");
+   lcd.setCursor(0, 1);
+   lcd.print(sumEnt/durchgangsCount);
+   lcd.print(" ms");
+
+	delay(5000);
+
+    
+	//Ende MittelwertFunktion
+  }
+ else{  //WerteErmittler
+   if(durchgangsCount > 1){
+
+   lcd.setCursor(0, 0);
+   lcd.print(durchgangsCount);
+   lcd.print(". entladezeit:");
+   lcd.setCursor(0, 1);
+   lcd.print(deltaentladeZeit);
+   lcd.print(" ms");
+   }
+
+	digitalWrite(Aufladen, HIGH); // beginnt den Aufladeprozess
+	laufStart = millis();       	// setzt die Zeit
+
+	while(analogRead(PrueferPin) < 648) {
+    	// Wartet bis der Kondensator 63.2% geladen ist
+	}
+
+	deltaZeit = millis() - laufStart; // vergangene Zeit = gesamtVergangezeit - die bei Anfangs des Durchgang gesetzt
+	Farads = ((deltaZeit) / Widerstandswert) * 1000; // *1000, weil milli(sekunde) * 1000 = mirko
+
+	sumFarads = sumFarads + Farads;
+	sumAuf = sumAuf + deltaZeit;
+
+	lcd.clear();
+	lcd.setCursor(0, 0);
+	lcd.print(durchgangsCount);
+	lcd.print(". aufladezeit:");
+	lcd.setCursor(0, 1);
+	lcd.print(deltaZeit);
+	lcd.print(" ms");
+
+	digitalWrite(Aufladen, LOW); // beendet den Aufladeprozes
+	pinMode(Entladung, OUTPUT);
+	digitalWrite(Entladung, LOW);
+    
+	entladeStart = millis();
+    
+	while(analogRead(PrueferPin) > 0) {
+    	// lässt das Programm nicht weiter bis der Kondensator entladen ist
+	}
+
+	lcd.clear();
+	lcd.setCursor(0, 0);
+	lcd.print(durchgangsCount);
+	lcd.print(". kapazitaet:");
+	lcd.setCursor(0, 1);
+	lcd.print(Farads);
+	lcd.print(" mikroF");
+    
+	deltaentladeZeit = millis() - entladeStart;
+	sumEnt = sumEnt + deltaentladeZeit;
+
+	pinMode(Entladung, INPUT);
+	durchgangsCount++;
+
+}
+}
+
